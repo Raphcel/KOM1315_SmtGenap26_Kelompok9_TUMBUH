@@ -1,0 +1,36 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.p12
+*.pfx
+*.crt
+*.csr
+secrets/
+private/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+myenv/
+
+# Node
+node_modules/
+dist/
+build/
+
+# Logs and generated outputs
+*.log
+logs/
+coverage/
+.pytest_cache/
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
