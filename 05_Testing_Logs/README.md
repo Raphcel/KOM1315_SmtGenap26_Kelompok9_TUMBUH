@@ -14,3 +14,13 @@ Folder ini berisi bukti pengujian keamanan untuk implementasi TUMBUH. Luaran ini
 
 ## Bukti hasil testing
 
+File-file berikut memuat bukti pengujian yang telah selesai dilakukan (hasil test, snippet code, dll.):
+- [security_test_log.md](./security_test_log.md)
+- [unit_test_results.md](./unit_test_results.md)
+- [auth_test_log.md](./auth_test_log.md)
+- [authorization_test_log.md](./authorization_test_log.md)
+- [accounting_test_log.md](./accounting_test_log.md)
+
+## Referensi
+
+Test otomatis backend tersedia di `be-web/tests/`.
