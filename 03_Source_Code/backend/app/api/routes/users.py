@@ -1,3 +1,4 @@
+import base64
 import re
 import time
 
@@ -17,10 +18,12 @@ from app.services.user_asset_service import (
     ensure_upload_dirs,
 )
 from app.services.user_service import UserService
-from app.schemas.user import UserUpdate, UserResponse
+from app.services.organization_service import OrganizationService
+from app.schemas.user import AccountDeleteRequest, UserUpdate, UserResponse
 from app.api.dependencies import (
     get_application_repo,
     get_current_user,
+    get_organization_service,
     get_user_repo,
     get_user_service,
 )
@@ -55,10 +58,19 @@ def _resolve_cv_file_or_404(user: User):
     return file_path
 
 
+def _build_cv_preview_payload(user: User, file_path):
+    return {
+        "filename": _build_cv_download_name(user),
+        "content_type": "application/pdf",
+        "data": base64.b64encode(file_path.read_bytes()).decode("ascii"),
+    }
+
+
 def _assert_cv_access(
     current_user: User,
     target_user: User,
     application_repo: ApplicationRepository,
+    organization_service: OrganizationService,
 ) -> None:
     if current_user.id == target_user.id:
         return
@@ -66,12 +78,11 @@ def _assert_cv_access(
     if current_user.role.value == "admin":
         return
 
-    if (
-        current_user.role.value == "hr"
-        and current_user.company_id
-        and application_repo.student_has_application_with_company(target_user.id, current_user.company_id)
-    ):
-        return
+    if current_user.role.value == "hr":
+        company_id = organization_service.resolve_company_id(current_user)
+        if company_id and application_repo.student_has_application_with_company(target_user.id, company_id):
+            organization_service.require_permission(current_user, company_id, "review_applicants")
+            return
 
     raise HTTPException(
         status_code=status.HTTP_403_FORBIDDEN,
@@ -96,6 +107,25 @@ def update_my_profile(
 ):
     """Update the authenticated user's profile."""
     return user_service.update_profile(current_user.id, data)
+
+
+@router.patch("/me/deactivate")
+def deactivate_my_account(
+    current_user: User = Depends(get_current_user),
+    user_service: UserService = Depends(get_user_service),
+):
+    """Deactivate the authenticated student's account."""
+    return user_service.deactivate_account(current_user.id)
+
+
+@router.post("/me/delete")
+def delete_my_account(
+    data: AccountDeleteRequest,
+    current_user: User = Depends(get_current_user),
+    user_service: UserService = Depends(get_user_service),
+):
+    """Permanently delete the authenticated student's account."""
+    return user_service.delete_account(current_user.id, str(data.email))
 
 
 @router.post("/me/avatar")
@@ -172,6 +202,15 @@ def get_my_cv(
     )
 
 
+@router.get("/me/cv/preview")
+def preview_my_cv(
+    current_user: User = Depends(get_current_user),
+):
+    """Return the authenticated user's CV as JSON-safe bytes for in-app preview."""
+    file_path = _resolve_cv_file_or_404(current_user)
+    return _build_cv_preview_payload(current_user, file_path)
+
+
 @router.get("/{user_id}", response_model=UserResponse)
 def get_user(
     user_id: int,
@@ -189,13 +228,14 @@ def get_user_cv(
     current_user: User = Depends(get_current_user),
     user_repo: UserRepository = Depends(get_user_repo),
     application_repo: ApplicationRepository = Depends(get_application_repo),
+    organization_service: OrganizationService = Depends(get_organization_service),
 ):
     """Open or download a student's CV when the requester is authorized."""
     target_user = user_repo.get_by_id(user_id)
     if not target_user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-    _assert_cv_access(current_user, target_user, application_repo)
+    _assert_cv_access(current_user, target_user, application_repo, organization_service)
     file_path = _resolve_cv_file_or_404(target_user)
 
     return FileResponse(
@@ -204,3 +244,21 @@ def get_user_cv(
         filename=_build_cv_download_name(target_user),
         content_disposition_type="attachment" if download else "inline",
     )
+
+
+@router.get("/{user_id}/cv/preview")
+def preview_user_cv(
+    user_id: int,
+    current_user: User = Depends(get_current_user),
+    user_repo: UserRepository = Depends(get_user_repo),
+    application_repo: ApplicationRepository = Depends(get_application_repo),
+    organization_service: OrganizationService = Depends(get_organization_service),
+):
+    """Return a student's CV as JSON-safe bytes when the requester is authorized."""
+    target_user = user_repo.get_by_id(user_id)
+    if not target_user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    _assert_cv_access(current_user, target_user, application_repo, organization_service)
+    file_path = _resolve_cv_file_or_404(target_user)
+    return _build_cv_preview_payload(target_user, file_path)

@@ -30,6 +30,13 @@ class User(Base):
     first_name: str = Column(String(100), nullable=False)
     last_name: str = Column(String(100), nullable=False)
     role: UserRole = Column(Enum(UserRole), nullable=False, default=UserRole.STUDENT)
+    auth_provider: str = Column(String(30), nullable=False, default="password")
+    google_sub: str = Column(String(255), unique=True, nullable=True, index=True)
+    is_email_verified: bool = Column(Boolean, default=True, nullable=False)
+    email_verification_token_hash: str = Column(String(64), nullable=True, index=True)
+    email_verification_sent_at: datetime = Column(DateTime, nullable=True)
+    password_reset_token_hash: str = Column(String(64), nullable=True, index=True)
+    password_reset_sent_at: datetime = Column(DateTime, nullable=True)
     avatar: str = Column(String(500), nullable=True)
     phone: str = Column(String(20), nullable=True)
     bio: str = Column(Text, nullable=True)
@@ -54,8 +61,17 @@ class User(Base):
     company = relationship("Company", back_populates="staff")
     applications = relationship("Application", back_populates="student", cascade="all, delete-orphan")
     bookmarks = relationship("Bookmark", back_populates="user", cascade="all, delete-orphan")
+    company_follows = relationship("CompanyFollow", back_populates="student", cascade="all, delete-orphan")
     externships = relationship("Externship", back_populates="student", cascade="all, delete-orphan")
     resume_profiles = relationship("ResumeProfile", back_populates="user", cascade="all, delete-orphan")
+    reviews = relationship("CompanyReview", back_populates="user", cascade="all, delete-orphan")
+    logbooks = relationship("InternshipLogbook", back_populates="student", cascade="all, delete-orphan")
+    organization_memberships = relationship(
+        "OrganizationMember",
+        foreign_keys="OrganizationMember.user_id",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
 
     @property
     def full_name(self) -> str:

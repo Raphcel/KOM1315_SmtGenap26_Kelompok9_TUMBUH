@@ -1,5 +1,5 @@
 import React, { lazy, Suspense } from 'react';
-import { Routes, Route, Navigate, Link } from 'react-router-dom';
+import { Routes, Route, Navigate, Link, useLocation, useParams } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { LanguageProvider, useTranslation } from './context/LanguageContext';
@@ -14,11 +14,14 @@ const lazyNamed = (factory, name) =>
 const Beranda         = lazyNamed(() => import('./pages/Beranda'),           'Beranda');
 const Lowongan        = lazyNamed(() => import('./pages/Lowongan'),          'Lowongan');
 const DetailLowongan  = lazyNamed(() => import('./pages/DetailLowongan'),    'DetailLowongan');
+const ApplyLowongan   = lazyNamed(() => import('./pages/ApplyLowongan'),     'ApplyLowongan');
 const Perusahaan      = lazyNamed(() => import('./pages/Perusahaan'),        'Perusahaan');
 const DetailPerusahaan = lazyNamed(() => import('./pages/DetailPerusahaan'), 'DetailPerusahaan');
 const Panduan         = lazyNamed(() => import('./pages/Panduan'),           'Panduan');
 const Login           = lazyNamed(() => import('./pages/Login'),             'Login');
 const Register        = lazyNamed(() => import('./pages/Register'),          'Register');
+const VerifyEmail     = lazyNamed(() => import('./pages/VerifyEmail'),       'VerifyEmail');
+const ResetPassword   = lazyNamed(() => import('./pages/ResetPassword'),     'ResetPassword');
 const Notifications   = lazyNamed(() => import('./pages/Notifications'),     'Notifications');
 const Calendar        = lazyNamed(() => import('./pages/Calendar'),          'Calendar');
 
@@ -29,18 +32,21 @@ const Bookmarks        = lazyNamed(() => import('./pages/student/Bookmarks'),   
 const ProfilStudent    = lazyNamed(() => import('./pages/student/Profil'),       'ProfilStudent');
 const StudentSettings  = lazyNamed(() => import('./pages/student/Settings'),     'StudentSettings');
 const CVBuilder        = lazyNamed(() => import('./pages/student/CVBuilder'),    'CVBuilder');
+const Logbook          = lazyNamed(() => import('./pages/student/Logbook'),      'Logbook');
+const LogbookDetail    = lazyNamed(() => import('./pages/student/LogbookDetail'), 'LogbookDetail');
 
 // ── HR pages ───────────────────────────────────────────────────────────────
 const HRDashboard        = lazyNamed(() => import('./pages/hr/Dashboard'),         'HRDashboard');
 const KelolaLowongan     = lazyNamed(() => import('./pages/hr/KelolaLowongan'),    'KelolaLowongan');
-const Pelamar            = lazyNamed(() => import('./pages/hr/Pelamar'),            'Pelamar');
-const ProfilPerusahaanHR = lazyNamed(() => import('./pages/hr/ProfilPerusahaan'),  'ProfilPerusahaanHR');
+const OpportunityManagement = lazyNamed(() => import('./pages/hr/OpportunityManagement'), 'OpportunityManagement');
 const FormLowongan       = lazyNamed(() => import('./pages/hr/FormLowongan'),      'FormLowongan');
+const OrganizationPage   = lazyNamed(() => import('./pages/hr/Organization'),      'OrganizationPage');
 
 // ── Admin pages ────────────────────────────────────────────────────────────
 const AdminDashboard      = lazyNamed(() => import('./pages/admin/Dashboard'),        'AdminDashboard');
 const UserManagement      = lazyNamed(() => import('./pages/admin/UserManagement'),   'UserManagement');
 const CompanyManagement   = lazyNamed(() => import('./pages/admin/CompanyManagement'),'CompanyManagement');
+const AuditLog            = lazyNamed(() => import('./pages/admin/AuditLog'),         'AuditLog');
 
 // ── Suspense fallback ──────────────────────────────────────────────────────
 function PageSpinner() {
@@ -66,9 +72,9 @@ function ErrorBoundaryFallback() {
       };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 px-4">
-      <h1 className="text-4xl font-bold text-gray-800 mb-4">{copy.title}</h1>
-      <p className="text-gray-600 mb-8 text-center max-w-md">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-[#E6ECF5] px-4">
+      <h1 className="text-4xl font-bold text-[#0A1D3D] mb-4">{copy.title}</h1>
+      <p className="text-[#0A1D3D]/60 mb-8 text-center max-w-md">
         {copy.description}
       </p>
       <button
@@ -124,10 +130,10 @@ function NotFound() {
       };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 px-4">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-[#E6ECF5] px-4">
       <h1 className="text-7xl font-bold text-brand mb-4">404</h1>
-      <h2 className="text-2xl font-semibold text-gray-800 mb-2">{copy.title}</h2>
-      <p className="text-gray-600 mb-8 text-center max-w-md">
+      <h2 className="text-2xl font-semibold text-[#0A1D3D] mb-2">{copy.title}</h2>
+      <p className="text-[#0A1D3D]/60 mb-8 text-center max-w-md">
         {copy.description}
       </p>
       <Link
@@ -146,16 +152,17 @@ function NotFound() {
  */
 function ProtectedRoute({ allowedRole, children }) {
   const { user, loading } = useAuth();
+  const location = useLocation();
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0f2854]" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1E3A8A]" />
       </div>
     );
   }
 
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user) return <Navigate to="/login" replace state={{ from: location }} />;
 
   if (allowedRole && user.role !== allowedRole) {
     const dest = user.role === 'admin' ? '/admin/dashboard' : user.role === 'hr' ? '/hr/dashboard' : '/student/dashboard';
@@ -163,6 +170,11 @@ function ProtectedRoute({ allowedRole, children }) {
   }
 
   return children;
+}
+
+function LegacyApplyRedirect() {
+  const { id } = useParams();
+  return <Navigate to={`/student/applications/apply/${id}`} replace />;
 }
 
 function AppRoutes() {
@@ -181,6 +193,17 @@ function AppRoutes() {
       {/* Auth Routes */}
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/verify-email" element={<VerifyEmail />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
+
+      <Route
+        path="/lowongan/:id/apply"
+        element={
+          <ProtectedRoute allowedRole="student">
+            <LegacyApplyRedirect />
+          </ProtectedRoute>
+        }
+      />
 
       {/* Shared Protected Routes */}
       <Route
@@ -205,7 +228,10 @@ function AppRoutes() {
       >
         <Route path="dashboard" element={<StudentDashboard />} />
         <Route path="applications" element={<LamaranSaya />} />
+        <Route path="applications/apply/:id" element={<ApplyLowongan />} />
         <Route path="bookmarks" element={<Bookmarks />} />
+        <Route path="logbook" element={<Logbook />} />
+        <Route path="logbook/:logbookId" element={<LogbookDetail />} />
         <Route path="cv-builder" element={<CVBuilder />} />
         <Route path="profile" element={<ProfilStudent />} />
         <Route path="settings" element={<StudentSettings />} />
@@ -221,11 +247,15 @@ function AppRoutes() {
         }
       >
         <Route path="dashboard" element={<HRDashboard />} />
+        <Route path="organization" element={<OrganizationPage />} />
+        <Route path="onboarding" element={<OrganizationPage />} />
+        <Route path="join" element={<OrganizationPage />} />
         <Route path="opportunities" element={<KelolaLowongan />} />
         <Route path="lowongan/baru" element={<FormLowongan />} />
         <Route path="opportunities/:id/edit" element={<FormLowongan />} />
+        <Route path="opportunities/:id" element={<OpportunityManagement />} />
         <Route path="applicants" element={<Navigate to="/hr/opportunities" replace />} />
-        <Route path="company" element={<ProfilPerusahaanHR />} />
+        <Route path="company" element={<Navigate to="/hr/organization?section=profile" replace />} />
         <Route path="calendar" element={<Calendar />} />
       </Route>
 
@@ -242,6 +272,7 @@ function AppRoutes() {
         <Route path="users" element={<UserManagement />} />
         <Route path="companies" element={<CompanyManagement />} />
         <Route path="opportunities" element={<AdminDashboard />} />
+        <Route path="audit" element={<AuditLog />} />
       </Route>
 
       {/* 404 Catch-All */}
